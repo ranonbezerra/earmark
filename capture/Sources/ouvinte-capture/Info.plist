@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>dev.ranonbezerra.ouvinte.capture</string>
+    <key>CFBundleName</key>
+    <string>ouvinte-capture</string>
+    <key>CFBundleVersion</key>
+    <string>0.1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>ouvinte records your microphone during a study session so it can transcribe and summarize it.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>ouvinte records the audio your Mac plays during a study session so it can transcribe and summarize it.</string>
+</dict>
+</plist>
