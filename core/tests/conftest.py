@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from ouvinte.config import Env, SettingsStore, UserSettings
-from ouvinte.db import make_engine
-from ouvinte.exporters import Exporter, ExportError
-from ouvinte.llm.base import LLMProvider
-from ouvinte.recorder import Recorder, RecordingInfo
-from ouvinte.service import AppContext
-from ouvinte.transcription.base import Transcriber, TranscriptChunk
+from earmark.config import Env, SettingsStore, UserSettings
+from earmark.db import make_engine
+from earmark.exporters import Exporter, ExportError
+from earmark.llm.base import LLMProvider
+from earmark.recorder import Recorder, RecordingInfo
+from earmark.service import AppContext
+from earmark.transcription.base import Transcriber, TranscriptChunk
 
 RATE = 16_000
 
@@ -57,19 +57,18 @@ class FakeTranscriber(Transcriber):
 
 SUMMARY_REPLY = json.dumps(
     {
-        "title": "Derivadas",
-        "language": "pt",
-        "summary": "## Derivadas\n\nA derivada mede a taxa de variação.",
-        "key_points": ["Regra da cadeia"],
-        "open_questions": ["Quando usar a regra do produto?"],
+        "title": "Derivatives",
+        "summary": "## Derivatives\n\nThe derivative measures the rate of change.",
+        "key_points": ["Chain rule"],
+        "open_questions": ["When to use the product rule?"],
         "tasks": [
             {
-                "title": "Resolver a lista 3",
-                "detail": "Exercícios 1 a 10",
+                "title": "Finish problem set 3",
+                "detail": "Exercises 1 to 10",
                 "due_date": "2026-10-12",
                 "priority": "high",
             },
-            {"title": "Revisar limites", "detail": None, "due_date": None, "priority": "medium"},
+            {"title": "Review limits", "detail": None, "due_date": None, "priority": "medium"},
         ],
     }
 )
@@ -194,10 +193,10 @@ class FakeExporter(Exporter):
 def _isolated_environment(monkeypatch, tmp_path):
     """No test may pick up real API keys, a real .env or the real data directory,
     and no test may ever write to the real Notes and Reminders apps."""
-    monkeypatch.setattr("ouvinte.exporters.apple.is_available", lambda: False)
-    for name in ("OMLX_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OUVINTE_COMPATIBLE_API_KEY"):
+    monkeypatch.setattr("earmark.exporters.apple.is_available", lambda: False)
+    for name in ("OMLX_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "EARMARK_COMPATIBLE_API_KEY"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("OUVINTE_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("EARMARK_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.chdir(tmp_path)
 
 

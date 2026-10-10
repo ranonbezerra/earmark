@@ -25,7 +25,7 @@ from .service import AppContext, NotFound, build_context
 
 PERMISSIONS_HINT = (
     "System Settings > Privacy & Security > Microphone, and > Screen & System Audio Recording "
-    "(allow the app you launched ouvinte from, for example your terminal)"
+    "(allow the app you launched earmark from, for example your terminal)"
 )
 
 
@@ -46,8 +46,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ouvinte", description="Local-first study recorder for macOS.")
-    parser.add_argument("--version", action="version", version=f"ouvinte {__version__}")
+    parser = argparse.ArgumentParser(prog="earmark", description="Local-first study recorder for macOS.")
+    parser.add_argument("--version", action="version", version=f"earmark {__version__}")
     commands = parser.add_subparsers(title="commands")
 
     def add(name: str, handler, summary: str) -> argparse.ArgumentParser:
@@ -152,7 +152,7 @@ def cmd_record(args: argparse.Namespace) -> int:
     print(f"Stopped after {format_timestamp(session.duration_s or 0)}.")
 
     if args.no_process:
-        print(f"Run `ouvinte process {session.id}` when you want the summary.")
+        print(f"Run `earmark process {session.id}` when you want the summary.")
         return 0
     return _process_and_print(ctx, session.id)
 
@@ -180,7 +180,7 @@ def cmd_sessions(_args: argparse.Namespace) -> int:
     ctx = build_context()
     sessions = service.list_sessions(ctx)
     if not sessions:
-        print("No sessions yet. Start one with `ouvinte record`.")
+        print("No sessions yet. Start one with `earmark record`.")
     for session in sessions:
         duration = format_timestamp(session.duration_s) if session.duration_s else "--:--:--"
         print(
@@ -311,9 +311,9 @@ def _process_and_print(ctx: AppContext, session_id: int, *, skip_transcription: 
     if session.status == SessionStatus.FAILED:
         print(f"error: {session.error}", file=sys.stderr)
         if service.get_transcript(ctx, session_id):
-            kept, retry = "recording and the transcript are", f"ouvinte process {session_id} --summary-only"
+            kept, retry = "recording and the transcript are", f"earmark process {session_id} --summary-only"
         else:
-            kept, retry = "recording is", f"ouvinte process {session_id}"
+            kept, retry = "recording is", f"earmark process {session_id}"
         print(f"The {kept} safe. Fix the problem and run `{retry}`.", file=sys.stderr)
         return 1
     if session.status == SessionStatus.EMPTY:
@@ -371,7 +371,7 @@ def _capture_test(ctx: AppContext, seconds: int = 5) -> bool:
     """Records a few seconds and reports whether each track actually has signal."""
     print(f"\nRecording {seconds}s. Play some audio and say something...")
     ok = True
-    with tempfile.TemporaryDirectory(prefix="ouvinte-test-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="earmark-test-") as tmp:
         folder = Path(tmp)
         info = ctx.recorder.start(folder, mic=True, system=True, segment_seconds=60)
         try:
@@ -407,7 +407,7 @@ def _export_test(ctx: AppContext) -> bool:
     if exporter is None:
         print("\n  [FAIL] Notes and Reminders can only be reached on macOS")
         return False
-    name = "ouvinte self-test"
+    name = "earmark self-test"
     print("\nWriting a test note and a test reminder. macOS may ask for permission to control each app...")
     ok = True
     note_id = reminder_id = None

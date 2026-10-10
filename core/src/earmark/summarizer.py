@@ -74,18 +74,11 @@ class SessionSummary(BaseModel):
     key_points: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
     tasks: list[ExtractedTask] = Field(default_factory=list)
-    language: str | None = None
 
     @field_validator("title", mode="before")
     @classmethod
     def _clean_title(cls, value: Any) -> str:
         return str(value or "").strip()[:120]
-
-    @field_validator("language", mode="before")
-    @classmethod
-    def _language_code(cls, value: Any) -> str | None:
-        code = str(value or "").strip().lower()
-        return code[:2] if code[:2].isalpha() and len(code) >= 2 else None
 
     @field_validator("key_points", "open_questions", mode="before")
     @classmethod
@@ -276,7 +269,6 @@ class Summarizer:
             '- "title": a short title for the session (at most 80 characters)\n'
             '- "summary": study notes in Markdown, organized by topic. Explain what was actually '
             "covered and keep definitions, formulas, examples and numbers. No preamble.\n"
-            '- "language": the two-letter code of the language you wrote in ("pt", "en"...)\n'
             '- "key_points": 3 to 8 strings with the ideas worth remembering\n'
             '- "open_questions": strings with doubts raised or points left unclear ([] if none)\n'
             '- "tasks": what the student has to do in the coming days ([] if nothing). Each task is '

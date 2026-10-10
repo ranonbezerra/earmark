@@ -1,10 +1,10 @@
-# ouvinte
+# earmark
 
 A local-first study recorder for macOS. It records what your Mac plays and what your microphone hears during a study session, transcribes both, writes study notes and keeps a list of what you need to do in the coming days. The notes land in Apple Notes, one note per day, and the tasks become reminders in Apple Reminders.
 
 It is not a meeting bot. Nothing joins your calls: the audio is captured on your own machine, and you choose whether the models run locally (MLX) or through an API.
 
-*Ouvinte* is Portuguese for "listener".
+The name is the idea: it lends an *ear* to your study session and *earmarks* what you still have to do.
 
 > **Status: early.** The capture helper, the Python core, the HTTP API and the CLI exist. The menu bar app does not yet. See [Roadmap](#roadmap).
 
@@ -37,13 +37,13 @@ It is not a meeting bot. Nothing joins your calls: the audio is captured on your
 ## Setup
 
 ```sh
-git clone https://github.com/ranonbezerra/ouvinte.git
-cd ouvinte
+git clone https://github.com/ranonbezerra/earmark.git
+cd earmark
 make setup      # builds the capture helper and installs the core with mlx-whisper
 make doctor     # checks everything: a 5 second recording, a test note and a test reminder
 ```
 
-`make doctor` is also the moment macOS asks for permission: microphone, system audio, and control of Notes and Reminders. All four are granted to the app you launched ouvinte from (your terminal, for now). The test note and reminder it writes are removed again. If a track stays silent, check *System Settings > Privacy & Security > Microphone* and *Screen & System Audio Recording*.
+`make doctor` is also the moment macOS asks for permission: microphone, system audio, and control of Notes and Reminders. All four are granted to the app you launched earmark from (your terminal, for now). The test note and reminder it writes are removed again. If a track stays silent, check *System Settings > Privacy & Security > Microphone* and *Screen & System Audio Recording*.
 
 The first local transcription downloads the Whisper model (about 1.6 GB for the default `mlx-community/whisper-large-v3-turbo`).
 
@@ -52,27 +52,27 @@ The first local transcription downloads the Whisper model (about 1.6 GB for the 
 All commands run from `core/` with `uv run`, or use the `make` shortcuts.
 
 ```sh
-uv run ouvinte record --title "Linear algebra"   # Ctrl+C stops, then it summarizes
-uv run ouvinte tasks                              # what is due, grouped by day
-uv run ouvinte done 3                             # check a task off (also in Reminders)
-uv run ouvinte sync                               # pull what you checked off in Reminders
-uv run ouvinte sessions                           # past sessions
-uv run ouvinte show 1 --transcript                # notes, tasks and transcript
-uv run ouvinte import lecture.m4a                 # summarize an existing file (non-WAV needs ffmpeg)
-uv run ouvinte process 1 --summary-only           # new summary from the stored transcript
-uv run ouvinte doctor                             # is everything reachable?
+uv run earmark record --title "Linear algebra"   # Ctrl+C stops, then it summarizes
+uv run earmark tasks                              # what is due, grouped by day
+uv run earmark done 3                             # check a task off (also in Reminders)
+uv run earmark sync                               # pull what you checked off in Reminders
+uv run earmark sessions                           # past sessions
+uv run earmark show 1 --transcript                # notes, tasks and transcript
+uv run earmark import lecture.m4a                 # summarize an existing file (non-WAV needs ffmpeg)
+uv run earmark process 1 --summary-only           # new summary from the stored transcript
+uv run earmark doctor                             # is everything reachable?
 ```
 
-If the summary step fails (for example oMLX is not running), the recording and the transcript are kept. Fix the problem and run `ouvinte process <id> --summary-only`.
+If the summary step fails (for example oMLX is not running), the recording and the transcript are kept. Fix the problem and run `earmark process <id> --summary-only`.
 
 ## Choosing the models
 
 Settings live in `settings.json` inside the data folder and can be changed from the CLI or the API. API keys are never stored there: they come from the environment or from `core/.env` (see `core/.env.example`).
 
 ```sh
-uv run ouvinte settings                                   # show
-uv run ouvinte settings llm_provider=anthropic            # change
-uv run ouvinte settings llm_provider=omlx llm_model=null  # back to local, first loaded model
+uv run earmark settings                                   # show
+uv run earmark settings llm_provider=anthropic            # change
+uv run earmark settings llm_provider=omlx llm_model=null  # back to local, first loaded model
 ```
 
 **Summaries (`llm_provider`)**
@@ -82,7 +82,7 @@ uv run ouvinte settings llm_provider=omlx llm_model=null  # back to local, first
 | `omlx` (default) | On your Mac, `http://localhost:8000/v1` | oMLX running. `llm_model` is optional: without it the first model oMLX lists is used. `OMLX_API_KEY` only if you set one. |
 | `anthropic` | Anthropic API | `ANTHROPIC_API_KEY`. `llm_model` is optional. |
 | `openai` | OpenAI API | `OPENAI_API_KEY` and `llm_model`. |
-| `openai-compatible` | Any server with the Chat Completions API (LM Studio, Ollama...) | `llm_base_url`, optionally `llm_model` and `OUVINTE_COMPATIBLE_API_KEY`. |
+| `openai-compatible` | Any server with the Chat Completions API (LM Studio, Ollama...) | `llm_base_url`, optionally `llm_model` and `EARMARK_COMPATIBLE_API_KEY`. |
 
 **Transcription (`stt_provider`)**
 
@@ -92,36 +92,37 @@ uv run ouvinte settings llm_provider=omlx llm_model=null  # back to local, first
 | `openai` | OpenAI API | `OPENAI_API_KEY`. |
 | `openai-compatible` | Any server with `/audio/transcriptions` | `stt_base_url` and `stt_model`. |
 
-Other useful settings: `language` (spoken language, such as `pt`; empty means auto-detect), `summary_language` (`auto` follows the transcript), `capture_mic`, `capture_system`, `keep_audio` (set to `false` to delete the audio once a session is summarized) and `dedupe_mic_echo`.
+Other useful settings: `language` (spoken language as an ISO code such as `en`; empty means auto-detect), `summary_language` (`auto` writes the notes in the language of the transcript, or name one, for example `English`), `capture_mic`, `capture_system`, `keep_audio` (set to `false` to delete the audio once a session is summarized) and `dedupe_mic_echo`.
 
 ## Apple Notes and Reminders
 
 After a session is summarized:
 
-- **Notes** gets the summary in a folder called `ouvinte`, in a note named after the date (`2026-10-10`). Every session of the same day is appended to that note under its own heading, with its key points, open questions and task list.
-- **Reminders** gets one reminder per extracted task in a list called `ouvinte`, with the due date when one was mentioned, a high priority flag when it applies, and a line pointing back to the session and its note.
+- **Notes** gets the summary in a folder called `Earmark`, in a note titled with the app name and the date (`Earmark 2026-10-10`). Every session of the same day is appended to that note under its own heading, with its key points, open questions and task list.
+- **Reminders** gets one reminder per extracted task in a list called `Earmark`, with the due date when one was mentioned, a high priority flag when it applies, and a line pointing back to the session and its note.
 
-Completion is kept in step both ways. `ouvinte done 3` completes the reminder, and a reminder you complete or delete in the Reminders app is picked up by `ouvinte tasks`, `ouvinte sync` or `POST /reminders/sync`. Summarizing a session again replaces the reminders that are still open and leaves completed ones alone.
+Completion is kept in step both ways. `earmark done 3` completes the reminder, and a reminder you complete or delete in the Reminders app is picked up by `earmark tasks`, `earmark sync` or `POST /reminders/sync`. Summarizing a session again replaces the reminders that are still open and leaves completed ones alone.
 
-The first export shows two more macOS prompts, asking to let the app you launched ouvinte from control Notes and Reminders. If the export fails, the session is still saved and `ouvinte show <id>` says what went wrong.
+The first export shows two more macOS prompts, asking to let the app you launched earmark from control Notes and Reminders. If the export fails, the session is still saved and `earmark show <id>` says what went wrong.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `export_notes`, `export_reminders` | `true` | Turn each export on or off. |
-| `notes_folder`, `reminders_list` | `ouvinte` | Where things go. Both are created when missing. |
-| `notes_grouping` | `day` | `day` appends every session to the note of its date. `session` writes one note per session. |
-| `note_date_format` | `%Y-%m-%d` | Date format for note titles and due dates, in `strftime` syntax (`%d/%m/%Y` for 10/10/2026). |
+| `notes_folder`, `reminders_list` | `Earmark` | Where things go. Both are created when missing. |
+| `notes_grouping` | `day` | `day` appends every session to the note of its date. `session` writes one note per session, titled `Earmark 2026-10-10 · <session title>`. |
+| `note_title_prefix` | `Earmark` | First part of every note title. |
+| `note_date_format` | `%Y-%m-%d` | Second part of the title, and the format of due dates, in `strftime` syntax (`%b %d, %Y` gives `Oct 10, 2026`). |
 
 One caveat of `day` grouping: Notes has no way to append to a note, so the note body is read, extended and written back. Text you typed in that note survives, but attachments such as images, scans and drawings in it may not. If you plan to decorate the notes by hand, use `notes_grouping=session`, where a note is only rewritten when you summarize that same session again.
 
 ## HTTP API
 
-`uv run ouvinte serve` starts the API on `http://127.0.0.1:8756`. It is what the menu bar app will talk to. Interactive docs are at `/docs`.
+`uv run earmark serve` starts the API on `http://127.0.0.1:8756`. It is what the menu bar app will talk to. Interactive docs are at `/docs`.
 
-Every route except `/health` and the documentation pages requires `Authorization: Bearer <token>`. Print the token with `uv run ouvinte token`.
+Every route except `/health` and the documentation pages requires `Authorization: Bearer <token>`. Print the token with `uv run earmark token`.
 
 ```sh
-TOKEN=$(uv run ouvinte token)
+TOKEN=$(uv run earmark token)
 curl -H "Authorization: Bearer $TOKEN" -X POST localhost:8756/recording/start
 curl -H "Authorization: Bearer $TOKEN" -X POST "localhost:8756/recording/stop?wait=true"
 curl -H "Authorization: Bearer $TOKEN" localhost:8756/agenda
@@ -144,7 +145,7 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8756/agenda
 
 ## Privacy
 
-- Audio, transcripts and the database stay in `~/Library/Application Support/ouvinte` (change with `OUVINTE_DATA_DIR`). The folder is readable only by your user.
+- Audio, transcripts and the database stay in `~/Library/Application Support/earmark` (change with `EARMARK_DATA_DIR`). The folder is readable only by your user.
 - Summaries and tasks are also written to your Notes and Reminders, which sync through iCloud if you have that turned on.
 - With `mlx-whisper` and `omlx`, nothing else leaves the machine. If you pick an API provider, the audio (for transcription) or the transcript (for summaries) is sent to that provider.
 - The API listens on localhost only and requires a token, because any web page open in a browser can send requests to localhost and this API can start a recording.
@@ -160,7 +161,7 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8756/agenda
 ## Project layout
 
 ```
-capture/   Swift package: the ouvinte-capture command line helper
+capture/   Swift package: the earmark-capture command line helper
 core/      Python package: pipeline, FastAPI app, CLI and tests
 Makefile   Shortcuts for building, testing and running
 ```

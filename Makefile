@@ -16,12 +16,12 @@ lint:
 	cd core && uv run ruff check . && uv run ruff format --check .
 
 serve:
-	cd core && uv run ouvinte serve
+	cd core && uv run earmark serve
 
 record:
-	cd core && uv run ouvinte record
+	cd core && uv run earmark record
 
 # Checks providers, records 5 seconds to confirm both tracks have signal, and
 # round-trips a throwaway note and reminder through Notes and Reminders.
 doctor:
-	cd core && uv run ouvinte doctor --capture-test --export-test
+	cd core && uv run earmark doctor --capture-test --export-test

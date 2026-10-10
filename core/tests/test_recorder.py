@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ouvinte.config import Env
-from ouvinte.recorder import Recorder, RecorderError, find_capture_binary
+from earmark.config import Env
+from earmark.recorder import Recorder, RecorderError, find_capture_binary
 
 FAKE = [sys.executable, str(Path(__file__).parent / "fake_capture.py")]
 
@@ -64,7 +64,7 @@ def test_missing_helper_is_explained(tmp_path):
 
 
 def test_explicit_binary_setting_wins(tmp_path):
-    binary = tmp_path / "ouvinte-capture"
+    binary = tmp_path / "earmark-capture"
     binary.write_text("#!/bin/sh\n")
 
     assert find_capture_binary(Env(data_dir=tmp_path, capture_bin=binary)) == binary

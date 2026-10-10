@@ -5,9 +5,9 @@ import httpx
 import pytest
 from conftest import make_wav
 
-from ouvinte.config import Env, UserSettings
-from ouvinte.llm import AnthropicProvider, LLMError, OpenAICompatProvider, build_llm
-from ouvinte.transcription import (
+from earmark.config import Env, UserSettings
+from earmark.llm import AnthropicProvider, LLMError, OpenAICompatProvider, build_llm
+from earmark.transcription import (
     MlxWhisperTranscriber,
     OpenAICompatTranscriber,
     TranscriptionError,
@@ -148,10 +148,10 @@ def test_api_transcription_sends_the_file_and_reads_segments(tmp_path):
         return httpx.Response(
             200,
             json={
-                "text": "olá mundo",
+                "text": "hello world",
                 "segments": [
-                    {"start": 0.0, "end": 0.4, "text": " olá"},
-                    {"start": 0.4, "end": 0.9, "text": " mundo"},
+                    {"start": 0.0, "end": 0.4, "text": " hello"},
+                    {"start": 0.4, "end": 0.9, "text": " world"},
                     {"start": 0.9, "end": 1.0, "text": "  "},
                 ],
             },
@@ -166,7 +166,7 @@ def test_api_transcription_sends_the_file_and_reads_segments(tmp_path):
     )
     chunks = transcriber.transcribe(audio, language="pt")
 
-    assert [(c.start_s, c.end_s, c.text) for c in chunks] == [(0.0, 0.4, "olá"), (0.4, 0.9, "mundo")]
+    assert [(c.start_s, c.end_s, c.text) for c in chunks] == [(0.0, 0.4, "hello"), (0.4, 0.9, "world")]
     body = seen[0].content
     assert seen[0].url.path == "/v1/audio/transcriptions"
     assert b'name="model"' in body and b"whisper-1" in body
@@ -179,10 +179,12 @@ def test_api_transcription_without_segments_covers_the_whole_file(tmp_path):
         name="x",
         base_url="http://stt.local/v1",
         model="m",
-        transport=httpx.MockTransport(lambda _r: httpx.Response(200, json={"text": "tudo junto"})),
+        transport=httpx.MockTransport(lambda _r: httpx.Response(200, json={"text": "all together"})),
     )
 
-    assert [(c.start_s, c.end_s, c.text) for c in transcriber.transcribe(audio)] == [(0.0, 2.0, "tudo junto")]
+    assert [(c.start_s, c.end_s, c.text) for c in transcriber.transcribe(audio)] == [
+        (0.0, 2.0, "all together")
+    ]
 
 
 def test_api_transcription_errors_are_readable(tmp_path):

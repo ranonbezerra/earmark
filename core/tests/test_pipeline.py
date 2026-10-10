@@ -6,10 +6,10 @@ from pathlib import Path
 from conftest import FakeLLM, FakeTranscriber, make_wav
 from sqlmodel import Session, select
 
-from ouvinte.llm.base import LLMError
-from ouvinte.models import SessionStatus, StudySession, Task, TaskStatus, TranscriptSegment
-from ouvinte.pipeline import TimedText, drop_mic_echo, format_timestamp, process_session
-from ouvinte.transcription.base import TranscriptChunk
+from earmark.llm.base import LLMError
+from earmark.models import SessionStatus, StudySession, Task, TaskStatus, TranscriptSegment
+from earmark.pipeline import TimedText, drop_mic_echo, format_timestamp, process_session
+from earmark.transcription.base import TranscriptChunk
 
 TODAY = date(2026, 10, 10)
 
@@ -50,11 +50,17 @@ def test_format_timestamp():
 
 def test_mic_echo_of_the_speakers_is_dropped_but_own_speech_is_kept():
     chunks = [
-        TimedText("system", 10.0, 16.0, "A derivada de uma função mede a taxa de variação instantânea."),
-        TimedText("mic", 10.5, 16.5, "a derivada de uma função mede a taxa de variação instantânea"),
-        TimedText("mic", 17.0, 20.0, "Preciso revisar isso antes da prova de sexta."),
-        TimedText("mic", 11.0, 12.0, "taxa de variação"),  # too short to judge
-        TimedText("mic", 300.0, 306.0, "a derivada de uma função mede a taxa de variação instantânea"),
+        TimedText(
+            "system", 10.0, 16.0, "The derivative of a function measures the instantaneous rate of change."
+        ),
+        TimedText(
+            "mic", 10.5, 16.5, "the derivative of a function measures the instantaneous rate of change"
+        ),
+        TimedText("mic", 17.0, 20.0, "I need to review this before the exam on Friday."),
+        TimedText("mic", 11.0, 12.0, "rate of change"),  # too short to judge
+        TimedText(
+            "mic", 300.0, 306.0, "the derivative of a function measures the instantaneous rate of change"
+        ),
     ]
 
     kept = drop_mic_echo(chunks)
@@ -80,8 +86,8 @@ def test_full_pipeline_stores_transcript_summary_and_tasks(tmp_path, engine, env
     )
     transcriber = FakeTranscriber(
         {
-            "system-00000.wav": [TranscriptChunk(0.1, 0.9, "A derivada mede a taxa de variação.")],
-            "mic-00000.wav": [TranscriptChunk(0.3, 0.8, "Tenho que fazer a lista três até segunda.")],
+            "system-00000.wav": [TranscriptChunk(0.1, 0.9, "The derivative measures the rate of change.")],
+            "mic-00000.wav": [TranscriptChunk(0.3, 0.8, "I have to do problem set three by Monday.")],
         }
     )
     llm = FakeLLM()
@@ -90,9 +96,9 @@ def test_full_pipeline_stores_transcript_summary_and_tasks(tmp_path, engine, env
     session = run(session_id, engine=engine, env=env, settings=settings, transcriber=transcriber, llm=llm)
 
     assert session.status == SessionStatus.DONE and session.error is None
-    assert session.title == "Derivadas"
-    assert session.summary.startswith("## Derivadas")
-    assert session.key_points == ["Regra da cadeia"]
+    assert session.title == "Derivatives"
+    assert session.summary.startswith("## Derivatives")
+    assert session.key_points == ["Chain rule"]
     assert (session.stt_provider, session.llm_provider, session.llm_model) == (
         "fake-stt",
         "fake-llm",
@@ -103,11 +109,11 @@ def test_full_pipeline_stores_transcript_summary_and_tasks(tmp_path, engine, env
     assert transcriber.calls == ["system-00000.wav", "mic-00000.wav"]
     transcript = sorted(rows(engine, TranscriptSegment, session_id), key=lambda r: r.start_s)
     assert [(r.source, round(r.start_s, 2)) for r in transcript] == [("system", 0.1), ("mic", 0.5)]
-    assert "[00:00:00] [mic] Tenho que fazer a lista três até segunda." in llm.prompts[0]
+    assert "[00:00:00] [mic] I have to do problem set three by Monday." in llm.prompts[0]
     tasks = sorted(rows(engine, Task, session_id), key=lambda t: t.id)
     assert [(t.title, t.due_date, t.priority.value, t.status) for t in tasks] == [
-        ("Resolver a lista 3", date(2026, 10, 12), "high", TaskStatus.OPEN),
-        ("Revisar limites", None, "medium", TaskStatus.OPEN),
+        ("Finish problem set 3", date(2026, 10, 12), "high", TaskStatus.OPEN),
+        ("Review limits", None, "medium", TaskStatus.OPEN),
     ]
     assert transcriber.closed and llm.closed
 
@@ -187,16 +193,16 @@ def test_summarizing_again_keeps_finished_tasks_and_replaces_open_ones(tmp_path,
     run(session_id, engine=engine, env=env, settings=settings, transcriber=transcriber, llm=FakeLLM())
 
     with Session(engine) as db:
-        done = db.exec(select(Task).where(Task.title == "Resolver a lista 3")).one()
+        done = db.exec(select(Task).where(Task.title == "Finish problem set 3")).one()
         done.status = TaskStatus.DONE
         db.add(done)
         db.commit()
 
     second = json.dumps(
         {
-            "title": "Derivadas",
-            "summary": "nova versão",
-            "tasks": [{"title": "resolver a lista 3!"}, {"title": "Assistir a aula 5"}],
+            "title": "Derivatives",
+            "summary": "new version",
+            "tasks": [{"title": "finish problem set 3!"}, {"title": "Watch lecture 5"}],
         }
     )
     run(
@@ -211,8 +217,8 @@ def test_summarizing_again_keeps_finished_tasks_and_replaces_open_ones(tmp_path,
 
     tasks = sorted(rows(engine, Task, session_id), key=lambda t: t.id)
     assert [(t.title, t.status) for t in tasks] == [
-        ("Resolver a lista 3", TaskStatus.DONE),
-        ("Assistir a aula 5", TaskStatus.OPEN),
+        ("Finish problem set 3", TaskStatus.DONE),
+        ("Watch lecture 5", TaskStatus.OPEN),
     ]
 
 
@@ -270,10 +276,10 @@ def test_tasks_the_user_created_survive_a_new_summary(tmp_path, engine, env, set
     transcriber = FakeTranscriber()
     run(session_id, engine=engine, env=env, settings=settings, transcriber=transcriber, llm=FakeLLM())
     with Session(engine) as db:
-        db.add(Task(session_id=session_id, title="Perguntar ao professor sobre a prova"))
+        db.add(Task(session_id=session_id, title="Ask the professor about the exam"))
         db.commit()
 
-    again = json.dumps({"title": "x", "summary": "novo", "tasks": [{"title": "Assistir a aula 5"}]})
+    again = json.dumps({"title": "x", "summary": "new", "tasks": [{"title": "Watch lecture 5"}]})
     run(
         session_id,
         engine=engine,
@@ -285,15 +291,15 @@ def test_tasks_the_user_created_survive_a_new_summary(tmp_path, engine, env, set
     )
 
     assert sorted(t.title for t in rows(engine, Task, session_id)) == [
-        "Assistir a aula 5",
-        "Perguntar ao professor sobre a prova",
+        "Ask the professor about the exam",
+        "Watch lecture 5",
     ]
 
 
 def test_a_long_untimed_system_chunk_is_not_used_to_drop_mic_speech():
-    words = "a derivada de uma função mede a taxa de variação instantânea"
+    words = "the derivative of a function measures the instantaneous rate of change"
     chunks = [
-        TimedText("system", 0.0, 300.0, words + " e muito mais conteúdo da aula inteira"),
+        TimedText("system", 0.0, 300.0, words + " and much more content from the whole lecture"),
         TimedText("mic", 100.0, 105.0, words),
     ]
 

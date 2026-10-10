@@ -1,13 +1,13 @@
 import stat
 
-from ouvinte.config import Env, SettingsStore, UserSettings
+from earmark.config import Env, SettingsStore, UserSettings
 
 
 def test_home_is_expanded_in_paths(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("OUVINTE_DATA_DIR", "~/ouvinte-data")
+    monkeypatch.setenv("EARMARK_DATA_DIR", "~/earmark-data")
 
-    assert Env().data_dir == tmp_path / "ouvinte-data"
+    assert Env().data_dir == tmp_path / "earmark-data"
 
 
 def test_token_is_created_once_private_and_reused(tmp_path):
@@ -26,13 +26,13 @@ def test_settings_are_persisted_and_partial_updates_keep_the_rest(tmp_path):
     store = SettingsStore(tmp_path / "settings.json")
     assert store.load() == UserSettings()
 
-    store.update({"notes_folder": "Estudos", "notes_grouping": "session"})
+    store.update({"notes_folder": "Study", "notes_grouping": "session"})
     store.update({"llm_provider": "anthropic"})
 
     loaded = store.load()
     assert (loaded.notes_folder, loaded.notes_grouping, loaded.llm_provider) == (
-        "Estudos",
+        "Study",
         "session",
         "anthropic",
     )
-    assert loaded.reminders_list == "ouvinte"
+    assert loaded.reminders_list == "Earmark"

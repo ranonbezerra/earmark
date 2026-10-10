@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .config import Env
 
-HELPER_NAME = "ouvinte-capture"
+HELPER_NAME = "earmark-capture"
 
 
 class RecorderError(RuntimeError):
@@ -97,7 +97,7 @@ class Recorder:
         with self._lock:
             if self._command is None:
                 raise RecorderError(
-                    "capture helper not found. Build it with `make capture` or set OUVINTE_CAPTURE_BIN."
+                    "capture helper not found. Build it with `make capture` or set EARMARK_CAPTURE_BIN."
                 )
             if self.running:
                 raise RecorderError("a recording is already in progress")
@@ -127,7 +127,7 @@ class Recorder:
                 raise RecorderError(f"could not launch the capture helper: {exc}") from exc
             run = _Run(process)
             run.reader = threading.Thread(
-                target=self._read_events, args=(run,), name="ouvinte-capture-events", daemon=True
+                target=self._read_events, args=(run,), name="earmark-capture-events", daemon=True
             )
             run.reader.start()
             self._run = run

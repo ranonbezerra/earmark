@@ -5,8 +5,8 @@ from datetime import date
 import pytest
 from conftest import SUMMARY_REPLY, FakeLLM
 
-from ouvinte.llm.base import LLMError
-from ouvinte.summarizer import (
+from earmark.llm.base import LLMError
+from earmark.summarizer import (
     SessionSummary,
     Summarizer,
     calendar_table,
@@ -57,11 +57,11 @@ def test_lenient_parsing_keeps_good_tasks_and_drops_bad_values():
     summary = SessionSummary.model_validate(
         {
             "title": "  Aula  ",
-            "summary": "texto",
+            "summary": "text",
             "key_points": "not a list",
             "tasks": [
-                {"title": "Entregar trabalho", "due_date": "2026-10-16T00:00:00", "priority": "URGENT"},
-                {"title": "Sem data", "due_date": "sexta-feira"},
+                {"title": "Hand in the paper", "due_date": "2026-10-16T00:00:00", "priority": "URGENT"},
+                {"title": "No date", "due_date": "next Friday"},
                 {"title": "   "},
                 "not an object",
             ],
@@ -71,24 +71,26 @@ def test_lenient_parsing_keeps_good_tasks_and_drops_bad_values():
     assert summary.title == "Aula"
     assert summary.key_points == []
     assert [(t.title, t.due_date, t.priority) for t in summary.tasks] == [
-        ("Entregar trabalho", date(2026, 10, 16), "medium"),
-        ("Sem data", None, "medium"),
+        ("Hand in the paper", date(2026, 10, 16), "medium"),
+        ("No date", None, "medium"),
     ]
 
 
 def test_short_transcript_is_summarized_in_one_call():
     llm = FakeLLM()
-    summarizer = Summarizer(llm, today=TODAY, language="pt-BR")
+    summarizer = Summarizer(llm, today=TODAY, language="Spanish")
 
-    summary = asyncio.run(summarizer.summarize(["[00:00:01] [system] A derivada mede a taxa de variação."]))
+    summary = asyncio.run(
+        summarizer.summarize(["[00:00:01] [system] The derivative measures the rate of change."])
+    )
 
     assert len(llm.prompts) == 1
     prompt = llm.prompts[0]
     assert "Today is Saturday, 2026-10-10" in prompt
     assert "2026-10-12 Monday" in prompt
-    assert "Write in this language: pt-BR." in prompt
-    assert "A derivada mede" in prompt
-    assert summary.title == "Derivadas"
+    assert "Write in this language: Spanish." in prompt
+    assert "The derivative measures" in prompt
+    assert summary.title == "Derivatives"
     assert summary.tasks[0].due_date == date(2026, 10, 12)
 
 
@@ -99,7 +101,7 @@ def test_long_transcript_is_summarized_in_blocks_then_consolidated():
     llm = FakeLLM(reply)
     stages = []
     summarizer = Summarizer(llm, chunk_chars=1_000, today=TODAY, progress=stages.append)
-    lines = [f"[00:00:{i:02d}] [system] " + "palavra " * 40 for i in range(12)]
+    lines = [f"[00:00:{i:02d}] [system] " + "word " * 40 for i in range(12)]
 
     summary = asyncio.run(summarizer.summarize(lines))
 
@@ -109,27 +111,27 @@ def test_long_transcript_is_summarized_in_blocks_then_consolidated():
     assert len(final_prompts) == 1
     # The final call sees the notes, never the raw transcript.
     assert "notes of this part" in final_prompts[0]
-    assert "palavra palavra" not in final_prompts[0]
+    assert "word word" not in final_prompts[0]
     assert stages[-1] == "writing the final summary"
-    assert summary.summary.startswith("## Derivadas")
+    assert summary.summary.startswith("## Derivatives")
 
 
 def test_invalid_reply_is_retried_once_with_the_reason():
     replies = iter(["I could not do that.", SUMMARY_REPLY])
     llm = FakeLLM(lambda _prompt: next(replies))
 
-    summary = asyncio.run(Summarizer(llm, today=TODAY).summarize(["[00:00:00] [mic] oi"]))
+    summary = asyncio.run(Summarizer(llm, today=TODAY).summarize(["[00:00:00] [mic] hi"]))
 
     assert len(llm.prompts) == 2
     assert "Your previous reply could not be used" in llm.prompts[1]
-    assert summary.title == "Derivadas"
+    assert summary.title == "Derivatives"
 
 
 def test_two_invalid_replies_raise_a_clear_error():
     llm = FakeLLM(json.dumps({"title": "x", "summary": "   "}))
 
     with pytest.raises(LLMError, match="did not return a usable summary"):
-        asyncio.run(Summarizer(llm, today=TODAY).summarize(["[00:00:00] [mic] oi"]))
+        asyncio.run(Summarizer(llm, today=TODAY).summarize(["[00:00:00] [mic] hi"]))
     assert len(llm.prompts) == 2
 
 
@@ -139,19 +141,13 @@ def test_empty_transcript_is_refused():
 
 
 def test_reasoning_without_an_opening_tag_and_raw_newlines_are_tolerated():
-    reply = 'let me think {about} this\n</think>\nHere {you} go: {"summary": "linha 1\nlinha 2"} bye {x}'
+    reply = 'let me think {about} this\n</think>\nHere {you} go: {"summary": "line 1\nline 2"} bye {x}'
 
-    assert extract_json(reply) == {"summary": "linha 1\nlinha 2"}
+    assert extract_json(reply) == {"summary": "line 1\nline 2"}
 
 
 def test_stray_backslashes_from_formulas_do_not_break_parsing():
     assert extract_json(r'{"summary": "use \sum and \alpha"}') == {"summary": r"use \sum and \alpha"}
-
-
-def test_language_code_is_normalized():
-    assert SessionSummary.model_validate({"summary": "x", "language": "PT-BR"}).language == "pt"
-    assert SessionSummary.model_validate({"summary": "x", "language": "?"}).language is None
-    assert SessionSummary.model_validate({"summary": "x"}).language is None
 
 
 def test_notes_of_a_very_long_session_are_condensed_until_they_fit():
@@ -161,11 +157,11 @@ def test_notes_of_a_very_long_session_are_condensed_until_they_fit():
         if "Reply with one JSON object" in prompt:
             return SUMMARY_REPLY
         if "Merge them" in prompt:
-            return "merged notes\nTODO: lista 3 até segunda"
-        return "long notes " * 60 + "\nTODO: lista 3 até segunda"
+            return "merged notes\nTODO: problem set 3 by Monday"
+        return "long notes " * 60 + "\nTODO: problem set 3 by Monday"
 
     llm = FakeLLM(reply)
-    lines = [f"[00:{i:02d}:00] [system] " + "palavra " * 100 for i in range(12)]
+    lines = [f"[00:{i:02d}:00] [system] " + "word " * 100 for i in range(12)]
 
     summary = asyncio.run(Summarizer(llm, chunk_chars=1_000, today=TODAY).summarize(lines))
 
@@ -173,15 +169,15 @@ def test_notes_of_a_very_long_session_are_condensed_until_they_fit():
     final = [p for p in llm.prompts if "Reply with one JSON object" in p][0]
     assert merges, "oversized notes must be condensed"
     assert "merged notes" in final and "long notes" not in final
-    assert final.count("TODO: lista 3 até segunda") == len(merges)
-    assert summary.title == "Derivadas"
+    assert final.count("TODO: problem set 3 by Monday") == len(merges)
+    assert summary.title == "Derivatives"
 
 
 def test_parts_that_come_back_empty_are_skipped_and_all_empty_is_an_error():
     def only_thinking(prompt: str) -> str:
         return SUMMARY_REPLY if "Reply with one JSON object" in prompt else "<think>nothing to say</think>"
 
-    lines = [f"[00:00:{i:02d}] [system] " + "palavra " * 40 for i in range(12)]
+    lines = [f"[00:00:{i:02d}] [system] " + "word " * 40 for i in range(12)]
 
     with pytest.raises(LLMError, match="empty notes"):
         asyncio.run(Summarizer(FakeLLM(only_thinking), chunk_chars=1_000, today=TODAY).summarize(lines))

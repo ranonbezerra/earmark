@@ -14,8 +14,8 @@ final class SystemCapture {
     // AudioDeviceStop waits for that delivery to finish, so stopping the
     // device from the same queue could deadlock. All setup and teardown
     // happens on `control`.
-    private let control = DispatchQueue(label: "ouvinte.capture.system.control")
-    private let ioQueue = DispatchQueue(label: "ouvinte.capture.system.io", qos: .userInitiated)
+    private let control = DispatchQueue(label: "earmark.capture.system.control")
+    private let ioQueue = DispatchQueue(label: "earmark.capture.system.io", qos: .userInitiated)
 
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -66,7 +66,7 @@ final class SystemCapture {
     private func setUp() throws {
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         description.uuid = UUID()
-        description.name = "ouvinte"
+        description.name = "earmark"
         description.isPrivate = true
         description.muteBehavior = .unmuted
 
@@ -83,7 +83,7 @@ final class SystemCapture {
 
             let outputUID = try CoreAudioHelpers.deviceUID(CoreAudioHelpers.defaultOutputDevice())
             let aggregate: [String: Any] = [
-                kAudioAggregateDeviceNameKey: "ouvinte-capture",
+                kAudioAggregateDeviceNameKey: "earmark-capture",
                 kAudioAggregateDeviceUIDKey: UUID().uuidString,
                 kAudioAggregateDeviceMainSubDeviceKey: outputUID,
                 kAudioAggregateDeviceIsPrivateKey: true,

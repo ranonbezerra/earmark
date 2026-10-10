@@ -61,8 +61,6 @@ class StudySession(SQLModel, table=True):
     llm_provider: str | None = None
     llm_model: str | None = None
     processed_at: datetime | None = None
-    # Language the summary was written in ("pt", "en"...), as reported by the model.
-    language: str | None = None
 
     # Where the summary went in the Notes app, and what went wrong if it did not.
     note_id: str | None = None

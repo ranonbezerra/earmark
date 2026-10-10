@@ -224,7 +224,7 @@ class AppleExporter(Exporter):
             if "-1743" in detail:
                 detail = (
                     f"not allowed to control {app}. Allow it in System Settings > Privacy & Security "
-                    "> Automation, for the app you launched ouvinte from."
+                    "> Automation, for the app you launched earmark from."
                 )
             raise ExportError(f"{app}: {detail}")
         return result.stdout.strip()

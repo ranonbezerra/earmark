@@ -3,7 +3,7 @@ import json
 import pytest
 from conftest import make_wav
 
-from ouvinte import cli, service
+from earmark import cli, service
 
 
 @pytest.fixture
@@ -14,47 +14,47 @@ def cli_ctx(ctx, monkeypatch):
 
 
 def test_import_processes_and_prints_summary_and_tasks(cli_ctx, tmp_path, capsys):
-    audio = make_wav(tmp_path / "aula.wav", 1.0)
+    audio = make_wav(tmp_path / "lecture.wav", 1.0)
 
     assert cli.main(["import", str(audio)]) == 0
 
     out = capsys.readouterr().out
     assert "Imported as session 1." in out
-    assert "# aula" in out and "A derivada mede a taxa de variação." in out
-    assert "[ ] #1 Resolver a lista 3 !" in out
-    assert "Exercícios 1 a 10" in out
+    assert "# lecture" in out and "The derivative measures the rate of change." in out
+    assert "[ ] #1 Finish problem set 3 !" in out
+    assert "Exercises 1 to 10" in out
 
 
 def test_failed_processing_exits_nonzero_and_says_the_recording_is_safe(cli_ctx, tmp_path, capsys):
-    from ouvinte.llm.base import LLMError
+    from earmark.llm.base import LLMError
 
     def offline(_settings, _env):
         raise LLMError("could not connect to omlx at http://localhost:8000")
 
     cli_ctx.llm_factory = offline
-    audio = make_wav(tmp_path / "aula.wav", 1.0)
+    audio = make_wav(tmp_path / "lecture.wav", 1.0)
 
     assert cli.main(["import", str(audio)]) == 1
 
     err = capsys.readouterr().err
     assert "could not connect to omlx" in err
     assert "The recording and the transcript are safe" in err
-    assert "ouvinte process 1 --summary-only" in err
+    assert "earmark process 1 --summary-only" in err
     assert "Traceback" not in err
 
 
 def test_tasks_done_and_sessions(cli_ctx, tmp_path, capsys):
-    cli.main(["import", str(make_wav(tmp_path / "aula.wav", 1.0))])
+    cli.main(["import", str(make_wav(tmp_path / "lecture.wav", 1.0))])
     capsys.readouterr()
 
     assert cli.main(["tasks"]) == 0
     listing = capsys.readouterr().out
-    assert "Resolver a lista 3" in listing and "Revisar limites" in listing
+    assert "Finish problem set 3" in listing and "Review limits" in listing
 
     assert cli.main(["done", "1"]) == 0
-    assert "done: Resolver a lista 3" in capsys.readouterr().out
+    assert "done: Finish problem set 3" in capsys.readouterr().out
     cli.main(["tasks"])
-    assert "Resolver a lista 3" not in capsys.readouterr().out
+    assert "Finish problem set 3" not in capsys.readouterr().out
 
     assert cli.main(["sessions"]) == 0
     assert "done" in capsys.readouterr().out
@@ -63,7 +63,7 @@ def test_tasks_done_and_sessions(cli_ctx, tmp_path, capsys):
 
 
 def test_show_with_transcript(cli_ctx, tmp_path, capsys):
-    cli.main(["import", str(make_wav(tmp_path / "aula.wav", 1.0))])
+    cli.main(["import", str(make_wav(tmp_path / "lecture.wav", 1.0))])
     capsys.readouterr()
 
     assert cli.main(["show", "1", "--transcript"]) == 0
@@ -76,7 +76,7 @@ def test_show_with_transcript(cli_ctx, tmp_path, capsys):
 def test_settings_are_shown_and_changed_with_typed_values(cli_ctx, capsys):
     assert (
         cli.main(
-            ["settings", "llm_provider=anthropic", "keep_audio=false", "chunk_chars=5000", "language=pt"]
+            ["settings", "llm_provider=anthropic", "keep_audio=false", "chunk_chars=5000", "language=en"]
         )
         == 0
     )
@@ -86,7 +86,7 @@ def test_settings_are_shown_and_changed_with_typed_values(cli_ctx, capsys):
         "anthropic",
         False,
         5000,
-        "pt",
+        "en",
     )
     assert service.build_context is not None
     assert cli.main(["settings", "nonsense=1"]) == 1
@@ -106,7 +106,7 @@ def test_no_command_prints_help(capsys):
 
 
 def test_tasks_picks_up_what_was_completed_in_reminders(cli_ctx, exporter, tmp_path, capsys):
-    cli.main(["import", str(make_wav(tmp_path / "aula.wav", 1.0))])
+    cli.main(["import", str(make_wav(tmp_path / "lecture.wav", 1.0))])
     capsys.readouterr()
     first = next(iter(exporter.reminders.values()))
     first["done"] = True
@@ -115,20 +115,20 @@ def test_tasks_picks_up_what_was_completed_in_reminders(cli_ctx, exporter, tmp_p
 
     out = capsys.readouterr().out
     assert "From Reminders: 1 completed, 0 removed." in out
-    assert "Resolver a lista 3" not in out and "Revisar limites" in out
+    assert "Finish problem set 3" not in out and "Review limits" in out
 
 
 def test_show_says_where_the_note_went(cli_ctx, tmp_path, capsys):
-    cli.main(["import", str(make_wav(tmp_path / "aula.wav", 1.0))])
+    cli.main(["import", str(make_wav(tmp_path / "lecture.wav", 1.0))])
 
-    assert "in Notes: 20" in capsys.readouterr().out
+    assert "in Notes: Earmark 20" in capsys.readouterr().out
 
 
 def test_one_off_commands_leave_a_session_another_process_is_recording_alone(env, monkeypatch):
     from sqlmodel import Session
 
-    from ouvinte.db import make_engine
-    from ouvinte.models import SessionStatus, StudySession
+    from earmark.db import make_engine
+    from earmark.models import SessionStatus, StudySession
 
     engine = make_engine(env.db_path)
     with Session(engine) as db:

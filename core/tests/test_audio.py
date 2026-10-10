@@ -2,7 +2,7 @@ import json
 
 from conftest import make_wav
 
-from ouvinte.audio import discover_segments, peak_window_dbfs, session_duration, wav_duration
+from earmark.audio import discover_segments, peak_window_dbfs, session_duration, wav_duration
 
 
 def test_tone_is_loud_and_silence_is_not(tmp_path):

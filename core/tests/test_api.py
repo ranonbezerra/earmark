@@ -4,8 +4,8 @@ import pytest
 from conftest import FakeLLM, FakeRecorder, make_wav
 from fastapi.testclient import TestClient
 
-from ouvinte.api.app import create_app
-from ouvinte.llm.base import LLMError
+from earmark.api.app import create_app
+from earmark.llm.base import LLMError
 
 AUTH = {"Authorization": "Bearer test-token"}
 
@@ -26,7 +26,7 @@ def test_health_is_open_but_everything_else_needs_the_token(ctx):
 
 
 def test_record_stop_and_process_end_to_end(client, ctx, transcriber, llm):
-    started = client.post("/recording/start", json={"title": "Cálculo I"})
+    started = client.post("/recording/start", json={"title": "Calculus I"})
     assert started.status_code == 201
     session_id = started.json()["session"]["id"]
     assert started.json()["mic"] is True and started.json()["system"] is True
@@ -40,9 +40,9 @@ def test_record_stop_and_process_end_to_end(client, ctx, transcriber, llm):
     assert stopped.status_code == 200
     body = stopped.json()
     assert body["session"]["status"] == "done"
-    assert body["session"]["title"] == "Cálculo I"  # the user's title wins over the model's
+    assert body["session"]["title"] == "Calculus I"  # the user's title wins over the model's
     assert body["session"]["duration_s"] == 1.0
-    assert [task["title"] for task in body["tasks"]] == ["Resolver a lista 3", "Revisar limites"]
+    assert [task["title"] for task in body["tasks"]] == ["Finish problem set 3", "Review limits"]
     assert sorted(transcriber.calls) == ["mic-00000.wav", "system-00000.wav"]
     assert client.get("/status").json()["recording"] is False
 
@@ -60,7 +60,7 @@ def test_stop_can_skip_processing_and_process_later(client, llm):
 
     processed = client.post(f"/sessions/{session_id}/process", params={"wait": True}).json()
     assert processed["session"]["status"] == "done"
-    assert processed["session"]["title"] == "Derivadas"
+    assert processed["session"]["title"] == "Derivatives"
 
 
 def test_summarize_again_with_overrides_reuses_the_transcript(client, ctx, transcriber):
@@ -113,13 +113,13 @@ def test_start_without_the_helper_is_a_conflict_and_leaves_nothing_behind(client
 
 
 def test_import_copies_the_file_and_processes_it(client, tmp_path, transcriber):
-    source = make_wav(tmp_path / "aula gravada.wav", 1.0)
+    source = make_wav(tmp_path / "recorded lecture.wav", 1.0)
 
     response = client.post("/sessions/import", params={"wait": True}, json={"path": str(source)})
 
     assert response.status_code == 201
     assert response.json()["session"]["status"] == "done"
-    assert response.json()["session"]["title"] == "aula gravada"
+    assert response.json()["session"]["title"] == "recorded lecture"
     assert transcriber.calls == ["system-00000.wav"]
     assert source.exists()
     assert client.post("/sessions/import", json={"path": str(tmp_path / "nope.wav")}).status_code == 404
@@ -129,11 +129,11 @@ def test_settings_roundtrip_and_validation(client):
     assert client.get("/settings").json()["llm_provider"] == "omlx"
 
     updated = client.put(
-        "/settings", json={"llm_provider": "anthropic", "language": "pt", "chunk_chars": 6000}
+        "/settings", json={"llm_provider": "anthropic", "language": "en", "chunk_chars": 6000}
     )
     assert updated.status_code == 200
     assert client.get("/settings").json() | {} == updated.json()
-    assert updated.json()["llm_provider"] == "anthropic" and updated.json()["language"] == "pt"
+    assert updated.json()["llm_provider"] == "anthropic" and updated.json()["language"] == "en"
     assert updated.json()["stt_provider"] == "mlx-whisper"  # untouched
 
     assert client.put("/settings", json={"language": None}).json()["language"] is None
@@ -150,11 +150,11 @@ def test_tasks_crud_and_agenda(client):
         assert response.status_code == 201
         return response.json()["id"]
 
-    overdue = add("Entregar relatório", today - timedelta(days=1))
-    add("Ler capítulo 4", today)
-    add("Lista de exercícios", today + timedelta(days=3), priority="high")
-    add("Prova final", today + timedelta(days=30))
-    add("Organizar anotações")
+    overdue = add("Hand in the report", today - timedelta(days=1))
+    add("Read chapter 4", today)
+    add("Problem set", today + timedelta(days=3), priority="high")
+    add("Final exam", today + timedelta(days=30))
+    add("Organize notes")
     assert client.post("/tasks", json={"title": ""}).status_code == 422
     assert client.post("/tasks", json={"title": "x", "session_id": 999}).status_code == 404
 
@@ -164,26 +164,26 @@ def test_tasks_crud_and_agenda(client):
         key: [t["title"] for t in agenda[key]]
         for key in ("overdue", "today", "upcoming", "later", "unscheduled")
     } == {
-        "overdue": ["Entregar relatório"],
-        "today": ["Ler capítulo 4"],
-        "upcoming": ["Lista de exercícios"],
-        "later": ["Prova final"],
-        "unscheduled": ["Organizar anotações"],
+        "overdue": ["Hand in the report"],
+        "today": ["Read chapter 4"],
+        "upcoming": ["Problem set"],
+        "later": ["Final exam"],
+        "unscheduled": ["Organize notes"],
     }
 
     done = client.patch(f"/tasks/{overdue}", json={"status": "done"}).json()
     assert done["status"] == "done" and done["completed_at"] is not None
-    assert "Entregar relatório" not in [t["title"] for t in client.get("/tasks").json()]
+    assert "Hand in the report" not in [t["title"] for t in client.get("/tasks").json()]
     assert len(client.get("/tasks", params={"all": True}).json()) == 5
     assert [t["title"] for t in client.get("/tasks", params={"status": "done"}).json()] == [
-        "Entregar relatório"
+        "Hand in the report"
     ]
 
     reopened = client.patch(
         f"/tasks/{overdue}", json={"status": "open", "due_date": None, "title": None}
     ).json()
     assert reopened["status"] == "open" and reopened["completed_at"] is None
-    assert reopened["due_date"] is None and reopened["title"] == "Entregar relatório"
+    assert reopened["due_date"] is None and reopened["title"] == "Hand in the report"
 
     assert client.delete(f"/tasks/{overdue}").status_code == 204
     assert client.patch(f"/tasks/{overdue}", json={"status": "done"}).status_code == 404
@@ -230,7 +230,7 @@ def test_summarize_without_a_transcript_is_refused_up_front(client):
 
 
 def test_manual_tasks_are_marked_as_such_and_reminders_sync_over_http(client, exporter):
-    created = client.post("/tasks", json={"title": "Comprar caderno"}).json()
+    created = client.post("/tasks", json={"title": "Buy a notebook"}).json()
     assert created["origin"] == "manual" and created["reminder_id"] is None
 
     client.post("/recording/start")

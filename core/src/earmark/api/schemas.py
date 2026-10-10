@@ -81,6 +81,7 @@ class SettingsUpdate(BaseModel):
     notes_folder: str | None = None
     reminders_list: str | None = None
     notes_grouping: Literal["day", "session"] | None = None
+    note_title_prefix: str | None = None
     note_date_format: str | None = None
 
 

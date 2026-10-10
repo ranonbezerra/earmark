@@ -28,14 +28,14 @@ STTProviderName = Literal["mlx-whisper", "openai", "openai-compatible"]
 
 def default_data_dir() -> Path:
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "ouvinte"
+        return Path.home() / "Library" / "Application Support" / "earmark"
     base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
-    return Path(base) / "ouvinte"
+    return Path(base) / "earmark"
 
 
 class Env(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="OUVINTE_", env_file=".env", extra="ignore", populate_by_name=True
+        env_prefix="EARMARK_", env_file=".env", extra="ignore", populate_by_name=True
     )
 
     data_dir: Path = Field(default_factory=default_data_dir)
@@ -46,17 +46,17 @@ class Env(BaseSettings):
 
     # Secrets. Read from the conventional variable names of each provider.
     omlx_api_key: str | None = Field(
-        default=None, validation_alias=AliasChoices("OMLX_API_KEY", "OUVINTE_OMLX_API_KEY")
+        default=None, validation_alias=AliasChoices("OMLX_API_KEY", "EARMARK_OMLX_API_KEY")
     )
     openai_api_key: str | None = Field(
-        default=None, validation_alias=AliasChoices("OPENAI_API_KEY", "OUVINTE_OPENAI_API_KEY")
+        default=None, validation_alias=AliasChoices("OPENAI_API_KEY", "EARMARK_OPENAI_API_KEY")
     )
     anthropic_api_key: str | None = Field(
-        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "OUVINTE_ANTHROPIC_API_KEY")
+        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "EARMARK_ANTHROPIC_API_KEY")
     )
     # Key for a generic OpenAI-compatible endpoint (LM Studio, Ollama, Groq...).
     compatible_api_key: str | None = Field(
-        default=None, validation_alias=AliasChoices("OUVINTE_COMPATIBLE_API_KEY")
+        default=None, validation_alias=AliasChoices("EARMARK_COMPATIBLE_API_KEY")
     )
 
     @field_validator("data_dir", "capture_bin", mode="after")
@@ -67,7 +67,7 @@ class Env(BaseSettings):
 
     @property
     def db_path(self) -> Path:
-        return self.data_dir / "ouvinte.sqlite3"
+        return self.data_dir / "earmark.sqlite3"
 
     @property
     def sessions_dir(self) -> Path:
@@ -150,12 +150,14 @@ class UserSettings(BaseModel):
     # Apple Notes and Reminders (macOS only; ignored elsewhere).
     export_notes: bool = True
     export_reminders: bool = True
-    notes_folder: str = Field(default="ouvinte", min_length=1)
-    reminders_list: str = Field(default="ouvinte", min_length=1)
+    notes_folder: str = Field(default="Earmark", min_length=1)
+    reminders_list: str = Field(default="Earmark", min_length=1)
     # "day": one note per date, every session of that day appended to it.
     # "session": one note per session.
     notes_grouping: Literal["day", "session"] = "day"
-    # strftime format of the date used as the note title.
+    # Note titles are "<prefix> <date>", for example "Earmark 2026-10-10".
+    note_title_prefix: str = "Earmark"
+    # strftime format of the dates in note titles and due dates.
     note_date_format: str = "%Y-%m-%d"
 
 

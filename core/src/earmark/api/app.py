@@ -46,7 +46,7 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         for job in jobs.values():
             job.cancel()
 
-    app = FastAPI(title="ouvinte", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="earmark", version=__version__, lifespan=lifespan)
     app.state.ctx = ctx
 
     def require_token(request: Request) -> None:
@@ -54,7 +54,7 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         if not secrets.compare_digest(supplied.encode(), f"Bearer {token}".encode()):
             raise HTTPException(
                 status.HTTP_401_UNAUTHORIZED,
-                "Missing or invalid API token. Send 'Authorization: Bearer <token>' (see `ouvinte token`).",
+                "Missing or invalid API token. Send 'Authorization: Bearer <token>' (see `earmark token`).",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 

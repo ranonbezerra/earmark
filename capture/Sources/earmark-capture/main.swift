@@ -4,7 +4,7 @@ import Foundation
 let version = "0.1.0"
 
 let usage = """
-ouvinte-capture \(version)
+earmark-capture \(version)
 
 Records the microphone and the system audio output into 16 kHz mono WAV
 segments (mic-00000.wav, system-00000.wav, ...) plus a segments.jsonl manifest.
@@ -12,10 +12,10 @@ Progress is reported as JSON lines on stdout. Stop with Ctrl+C (SIGINT) or
 SIGTERM; files are finalized on the way out.
 
 USAGE:
-  ouvinte-capture record --out-dir <dir> [--no-mic] [--no-system]
+  earmark-capture record --out-dir <dir> [--no-mic] [--no-system]
                          [--segment-seconds <n>] [--max-seconds <n>]
-  ouvinte-capture check
-  ouvinte-capture --version
+  earmark-capture check
+  earmark-capture --version
 """
 
 struct Options {

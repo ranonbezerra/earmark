@@ -46,7 +46,7 @@ MAX_ECHO_REFERENCE_SECONDS = 45.0
 
 # MLX keeps per-thread state, so every transcription call runs on this one
 # thread. It also keeps two sessions from loading the model at the same time.
-_STT_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ouvinte-stt")
+_STT_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="earmark-stt")
 
 _WORD = re.compile(r"\w+", re.UNICODE)
 
@@ -205,7 +205,6 @@ async def summarize_session(
         session.summary = summary.summary
         session.key_points = summary.key_points
         session.open_questions = summary.open_questions
-        session.language = summary.language or session.language
         session.llm_provider = llm.name
         session.llm_model = model
         db.add(session)

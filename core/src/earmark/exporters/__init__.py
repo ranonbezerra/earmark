@@ -32,39 +32,6 @@ __all__ = [
     "sync_reminders",
 ]
 
-LABELS = {
-    "en": {
-        "key_points": "Key points",
-        "open_questions": "Open questions",
-        "tasks": "Tasks",
-        "due": "due",
-        "session": "Session",
-        "note": "Note",
-        "untitled": "Study session",
-        "updated": "updated",
-    },
-    "pt": {
-        "key_points": "Pontos-chave",
-        "open_questions": "Dúvidas em aberto",
-        "tasks": "Tarefas",
-        "due": "até",
-        "session": "Sessão",
-        "note": "Nota",
-        "untitled": "Sessão de estudo",
-        "updated": "atualizado",
-    },
-    "es": {
-        "key_points": "Puntos clave",
-        "open_questions": "Dudas abiertas",
-        "tasks": "Tareas",
-        "due": "hasta",
-        "session": "Sesión",
-        "note": "Nota",
-        "untitled": "Sesión de estudio",
-        "updated": "actualizado",
-    },
-}
-
 
 def build_exporter(settings: UserSettings) -> Exporter | None:
     """The exporter to use, or None when exporting is off or impossible here."""
@@ -73,19 +40,16 @@ def build_exporter(settings: UserSettings) -> Exporter | None:
     return AppleExporter() if apple.is_available() else None
 
 
-def labels_for(session: StudySession, settings: UserSettings) -> dict[str, str]:
-    for candidate in (session.language, settings.summary_language, settings.language):
-        code = (candidate or "").strip().lower()[:2]
-        if code in LABELS:
-            return LABELS[code]
-    return LABELS["en"]
+UNTITLED = "Study session"
 
 
 def note_name(session: StudySession, settings: UserSettings) -> str:
+    """Title of the note a session goes to: the app's prefix plus the date."""
     day = session.started_at.astimezone().strftime(settings.note_date_format)
+    name = f"{settings.note_title_prefix} {day}".strip()
     if settings.notes_grouping == "day":
-        return day
-    return f"{day} {session.title or labels_for(session, settings)['untitled']}"
+        return name
+    return f"{name} · {session.title or UNTITLED}"
 
 
 _HEADING = re.compile(r"<(/?)h[1-6]>")
@@ -95,12 +59,11 @@ def render_section(
     session: StudySession, tasks: list[Task], settings: UserSettings, *, updated: bool = False
 ) -> str:
     """HTML for one session, in the small subset of HTML that Notes keeps."""
-    labels = labels_for(session, settings)
     started = session.started_at.astimezone()
     parts = []
     if settings.notes_grouping == "day":
-        marker = f" ({labels['updated']})" if updated else ""
-        title = html.escape(session.title or labels["untitled"])
+        marker = " (updated)" if updated else ""
+        title = html.escape(session.title or UNTITLED)
         parts.append(f"<h2>{started:%H:%M} · {title}{marker}</h2>")
 
     # Session notes are Markdown. Their headings become the smallest heading
@@ -108,16 +71,16 @@ def render_section(
     body = markdown.markdown(session.summary or "", extensions=["sane_lists", "tables"])
     parts.append(_HEADING.sub(r"<\1h3>", body))
 
-    for key, items in (("key_points", session.key_points), ("open_questions", session.open_questions)):
+    for heading, items in (("Key points", session.key_points), ("Open questions", session.open_questions)):
         if items:
             rows = "".join(f"<li>{html.escape(item)}</li>" for item in items)
-            parts.append(f"<h3>{labels[key]}</h3><ul>{rows}</ul>")
+            parts.append(f"<h3>{heading}</h3><ul>{rows}</ul>")
     if tasks:
         rows = ""
         for task in tasks:
-            due = f" ({labels['due']} {_day(task.due_date, settings)})" if task.due_date else ""
+            due = f" (due {_day(task.due_date, settings)})" if task.due_date else ""
             rows += f"<li>{html.escape(task.title)}{due}</li>"
-        parts.append(f"<h3>{labels['tasks']}</h3><ul>{rows}</ul>")
+        parts.append(f"<h3>Tasks</h3><ul>{rows}</ul>")
     parts.append("<div><br></div>")
     return "".join(parts)
 
@@ -143,7 +106,6 @@ def export_session(session_id: int, *, engine: Engine, settings: UserSettings, e
                 .order_by(Task.id)  # type: ignore[arg-type]
             )
         )
-        labels = labels_for(session, settings)
         name = note_name(session, settings)
 
         if settings.export_notes:
@@ -161,12 +123,10 @@ def export_session(session_id: int, *, engine: Engine, settings: UserSettings, e
             db.commit()
 
         if settings.export_reminders:
-            day = session.started_at.astimezone()
-            context = (
-                f"{labels['session']}: {session.title or labels['untitled']} ({_day(day.date(), settings)})"
-            )
+            day = _day(session.started_at.astimezone().date(), settings)
+            context = f"Session: {session.title or UNTITLED} ({day})"
             if settings.export_notes:
-                context += f"\n{labels['note']}: {settings.notes_folder} / {name}"
+                context += f"\nNote: {settings.notes_folder} / {name}"
             for task in tasks:
                 if task.reminder_id or task.status != TaskStatus.OPEN:
                     continue
